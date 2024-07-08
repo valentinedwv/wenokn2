@@ -6,6 +6,7 @@ import pandas as pd
 import datacommons_pandas as dc
 from keplergl import keplergl
 from langchain_groq import ChatGroq
+from langchain_openai import ChatOpenAI
 
 from util import process_data_request, process_regulation_request, process_off_topic_request, process_data_commons_request, process_energy_atlas_request
 from refine_request import get_refined_question
@@ -15,13 +16,31 @@ from dataframe_table import render_interface_for_table
 from data_commons import get_time_series_dataframe_for_dcid, get_dcid_from_county_name,  get_dcid_from_state_name, get_dcid_from_country_name
 from util import load_coal_mines
 
+USE_API = st.secrets["USE_API"]
+if USE_API == "aimlapi":
+    AIML_KEY = st.secrets[USE_API]["AIML_KEY"]
+    AIML_KEY_2 = st.secrets[USE_API]["AIML_KEY_2"]
+    BASE_API_URL = st.secrets[USE_API]["BASE_API_URL"]
+    AIML_MODEL = st.secrets[USE_API]["AIML_MODEL"]
+    llm = ChatOpenAI(
+        api_key=AIML_KEY,
+        base_url=BASE_API_URL,
+        model_name=AIML_MODEL
+    )
+    llm2 = ChatOpenAI(
+        api_key=AIML_KEY_2,
+        base_url=BASE_API_URL,
+        model_name=AIML_MODEL
+    )
+   # llm = ChatGroq(temperature=0, model_name="llama3-70b-8192", api_key=AIML_KEY)
 
-# Setup LLM
-Groq_KEY = st.secrets["Groq_KEY"]
-Groq_KEY_2 = st.secrets["Groq_KEY_2"]
+else:
+    # Setup LLM
+    Groq_KEY = st.secrets[USE_API]["Groq_KEY"]
+    Groq_KEY_2 = st.secrets[USE_API]["Groq_KEY_2"]
 
-llm = ChatGroq(temperature=0, model_name="llama3-70b-8192", api_key=Groq_KEY)
-llm2 = ChatGroq(temperature=0, model_name="llama3-70b-8192", api_key=Groq_KEY_2)
+    llm = ChatGroq(temperature=0, model_name="llama3-70b-8192", api_key=Groq_KEY)
+    llm2 = ChatGroq(temperature=0, model_name="llama3-70b-8192", api_key=Groq_KEY_2)
 
 # Set the wide layout of the web page
 st.set_page_config(layout="wide", page_title="WEN-OKN")
@@ -44,10 +63,10 @@ if "wen_datasets" not in st.session_state:
     st.session_state.table_chat_histories = []
     st.session_state.chart_types = []
 
-# Flag for managing rerun. 
+# Flag for managing rerun.
 if "rerun" not in st.session_state:
     st.session_state.rerun = False
-    
+
 # Add all generated SPARQL queries with the requests to Streamlit session state
 if "sparqls" not in st.session_state:
     st.session_state.requests = []
@@ -68,11 +87,11 @@ def add_map():
 
         # check if any datasets were deleted
         map_data_ids = [layer["config"]["dataId"] for layer in map_config_json["visState"]["layers"]]
-        indices_to_remove = [i for i, dataset in enumerate(st.session_state.datasets) if not dataset.id in map_data_ids]    
+        indices_to_remove = [i for i, dataset in enumerate(st.session_state.datasets) if not dataset.id in map_data_ids]
 
         deleted = False
         for i in reversed(indices_to_remove):
-            # the returnd map config may have several seconds delay 
+            # the returnd map config may have several seconds delay
             if time.time() - st.session_state.datasets[i].time > 3:
                 del st.session_state.datasets[i]
                 del st.session_state.requests[i]
@@ -149,7 +168,7 @@ with col2:
                     # st.code(json.dumps(plan, indent=4))
                     for request in plan['requests']:
                         process_data_request(request, chat_container)
-                    count_end = len(st.session_state.datasets)   
+                    count_end = len(st.session_state.datasets)
                     for idx in range(count_start, count_end):
                         st.session_state.datasets[idx].time = time.time()
                     st.session_state.chat.append({"role": "assistant",
@@ -183,9 +202,9 @@ with col2:
                                     """
                         except Exception as e:
                             # message = f"""
-                            #            {code} 
+                            #            {code}
                             #            {str(e)}
-                            #            """               
+                            #            """
                             message = f"""We are not able to process your request. Please refine your 
                                           request and try it again. \n\nError: {str(e)}"""
                         st.markdown(message)
@@ -208,7 +227,7 @@ with col2:
                         message = f"""
                                    {code} 
                                    {str(e)}
-                                   """              
+                                   """
                     st.markdown(message)
                     st.session_state.chat.append({"role": "assistant", "content": message})
             else:

@@ -7,6 +7,13 @@ sparql_dataframe
 langchain
 langchain_groq
 groq
-openai
 datacommons-pandas
 datacommons
+chromadb
+decouple
+google.generativeai
+fastapi
+groq
+llama-index-core
+llama-index-llms-openai
+llama-index-embeddings-huggingface
